@@ -13,7 +13,7 @@ export const userRouter = new Hono<{
 
 userRouter.post("/signup", async (c) => {
   const body = await c.req.json();
-  const data = signinInput.safeParse(body);
+  const data = signupInput.safeParse(body);
   if (!data.success) {
     return c.json(
       {
@@ -45,5 +45,50 @@ userRouter.post("/signup", async (c) => {
     console.log(e);
     c.status(411);
     return c.text("Invalid");
+  }
+});
+
+userRouter.post("/signin", async (c) => {
+  const body = await c.req.json();
+  const data = signinInput.safeParse(body);
+  if (!data.success) {
+    return c.json(
+      {
+        msg: "Inputs are correct",
+      },
+      411
+    );
+  }
+  const prisma = new PrismaClient({
+    datasourceUrl: c.env.DATABASE_URL,
+  }).$extends(withAccelerate());
+
+  try {
+    const user = await prisma.user.findFirst({
+      where: {
+        username: body.username,
+        password: body.password,
+      },
+    });
+    if (!user) {
+      return c.json(
+        {
+          msg: "Incoorect credentials",
+        },
+        403
+      );
+    }
+    const jwt = await sign(
+      {
+        id: user.id,
+      },
+      c.env.JWT_SECRET
+    );
+    return c.text(jwt);
+  } catch (e) {
+    console.log(e);
+    return c.json({
+      msg: "Invalid",
+    });
   }
 });

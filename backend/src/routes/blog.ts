@@ -95,3 +95,59 @@ blogRouter.put("/", async (c) => {
     id: blog.id,
   });
 });
+
+blogRouter.get("/bulk", async (c) => {
+  const prisma = new PrismaClient({
+    datasourceUrl: c.env.DATABASE_URL,
+  }).$extends(withAccelerate());
+  const blogs = await prisma.blog.findMany({
+    select: {
+      content: true,
+      title: true,
+      id: true,
+      author: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  });
+
+  return c.json({
+    blogs,
+  });
+});
+
+blogRouter.get("/:id", async (c) => {
+  const id = c.req.param("id");
+  const prisma = new PrismaClient({
+    datasourceUrl: c.env.DATABASE_URL,
+  }).$extends(withAccelerate());
+
+  try {
+    const blog = await prisma.blog.findFirst({
+      where: {
+        id: Number(id),
+      },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        author: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    return c.json({
+      blog,
+    });
+  } catch (e) {
+    c.status(411); // 4
+    return c.json({
+      message: "Error while fetching blog post",
+    });
+  }
+});
